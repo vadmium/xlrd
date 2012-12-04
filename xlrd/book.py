@@ -14,7 +14,7 @@ from . import compdoc
 from .formula import *
 from . import formatting
 if sys.version.startswith("IronPython"):
-    # print >> sys.stderr, "...importing encodings"
+    # print("...importing encodings", file=sys.stderr)
     import encodings
 
 empty_cell = sheet.empty_cell # for exposure to the world ...
@@ -810,7 +810,7 @@ class Book(BaseObject):
             strg = unpack_string(self.user_name, 0, self.encoding, lenlen=1)
             strg = strg.rstrip()
             # if DEBUG:
-            #     print "CODEPAGE: user name decoded from %r to %r" % (self.user_name, strg)
+            #     print("CODEPAGE: user name decoded from %r to %r" % (self.user_name, strg))
             self.user_name = strg
             self.raw_user_name = False
         return self.encoding
@@ -1061,7 +1061,7 @@ class Book(BaseObject):
         # Worrying about embedded (BOF ... EOF) substreams is done elsewhere.
         # DEBUG = 1
         obj_type, obj_id = unpack('<HI', data[4:10])
-        # if DEBUG: print "---> handle_obj type=%d id=0x%08x" % (obj_type, obj_id)
+        # if DEBUG: print("---> handle_obj type=%d id=0x%08x" % (obj_type, obj_id))
 
     def handle_supbook(self, data):
         # aka EXTERNALBOOK in OOo docs
@@ -1232,11 +1232,11 @@ class Book(BaseObject):
                     if DEBUG: print("global EOF: position", self._position, file=self.logfile)
                     # if DEBUG:
                     #     pos = self._position - 4
-                    #     print repr(self.mem[pos:pos+40])
+                    #     print(repr(self.mem[pos:pos+40]))
                 return
             else:
                 # if DEBUG:
-                #     print >> self.logfile, "parse_globals: ignoring record code 0x%04x" % rc
+                #     print("parse_globals: ignoring record code 0x%04x" % rc, file=self.logfile)
                 pass
 
     def read(self, pos, length):
@@ -1246,7 +1246,7 @@ class Book(BaseObject):
 
     def getbof(self, rqd_stream):
         # DEBUG = 1
-        # if DEBUG: print >> self.logfile, "getbof(): position", self._position
+        # if DEBUG: print("getbof(): position", self._position, file=self.logfile)
         if DEBUG: print("reqd: 0x%04x" % rqd_stream, file=self.logfile)
         def bof_error(msg):
             raise XLRDError('Unsupported format, or corrupt file: ' + msg)
@@ -1395,11 +1395,11 @@ def unpack_SST_table(datatab, nstrings):
                 # Uncompressed UTF-16
                 charsavail = local_min((datalen - pos) >> 1, charsneed)
                 rawstrg = data[pos:pos+2*charsavail]
-                # if DEBUG: print "SST U16: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
+                # if DEBUG: print("SST U16: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg))
                 try:
                     accstrg += rawstrg.decode("utf_16_le")
                 except:
-                    # print "SST U16: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
+                    # print("SST U16: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg))
                     # Probable cause: dodgy data e.g. unfinished surrogate pair.
                     # E.g. file unicode2.xls in pyExcelerator's examples has cells containing
                     # unichr(i) for i in range(0x100000)
@@ -1410,7 +1410,7 @@ def unpack_SST_table(datatab, nstrings):
                 # Note: this is COMPRESSED (not ASCII!) encoding!!!
                 charsavail = local_min(datalen - pos, charsneed)
                 rawstrg = data[pos:pos+charsavail]
-                # if DEBUG: print "SST CMPRSD: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
+                # if DEBUG: print("SST CMPRSD: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg))
                 accstrg += rawstrg.decode(latin_1)
                 pos += charsavail
             charsgot += charsavail

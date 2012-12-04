@@ -349,7 +349,7 @@ class X12Book(X12General):
     def do_sheet(self, elem):
         bk = self.bk
         sheetx = bk.nsheets
-        # print elem.attrib
+        # print(elem.attrib)
         rid = elem.get(U_ODREL + 'id')
         sheetId = int(elem.get('sheetId'))
         name = unescape(ensure_unicode(elem.get('name')))
@@ -533,7 +533,7 @@ class X12Sheet(X12General):
     def do_dimension(self, elem):
         ref = elem.get('ref') # example: "A1:Z99" or just "A1"
         if ref:
-            # print >> self.logfile, "dimension: ref=%r" % ref
+            # print("dimension: ref=%r" % ref, file=self.logfile)
             last_cell_ref = ref.split(':')[-1] # example: "Z99"
             rowx, colx = cell_name_to_rowx_colx(last_cell_ref)
             self.sheet._dimnrows = rowx + 1

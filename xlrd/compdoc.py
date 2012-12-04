@@ -210,10 +210,10 @@ class CompDoc(object):
         if DEBUG:
             print("SAT: len =", len(self.SAT), file=logfile)
             dump_list(self.SAT, 10, logfile)
-            # print >> logfile, "SAT ",
+            # logfile.write("SAT  ")
             # for i, s in enumerate(self.SAT):
-                # print >> logfile, "entry: %4d offset: %6d, next entry: %4d" % (i, 512 + sec_size * i, s)
-                # print >> logfile, "%d:%d " % (i, s),
+                # logfile.write("entry: %4d offset: %6d, next entry: %4d\n" % (i, 512 + sec_size * i, s))
+                # logfile.write("%d:%d  " % (i, s))
             print(file=logfile)
         if DEBUG and dump_again:
             print("MSAT: len =", len(MSAT), file=logfile)
@@ -255,7 +255,7 @@ class CompDoc(object):
             self.SSCS = self._get_stream(
                 self.mem, 512, self.SAT, sec_size, sscs_dir.first_SID,
                 sscs_dir.tot_size, name="SSCS", seen_id=4)
-        # if DEBUG: print >> logfile, "SSCS", repr(self.SSCS)
+        # if DEBUG: print("SSCS", repr(self.SSCS), file=logfile)
         #
         # === build the SSAT ===
         #
@@ -284,7 +284,7 @@ class CompDoc(object):
             dump_list(seen, 20, logfile)
 
     def _get_stream(self, mem, base, sat, sec_size, start_sid, size=None, name='', seen_id=None):
-        # print >> self.logfile, "_get_stream", base, sec_size, start_sid, size
+        # print("_get_stream", base, sec_size, start_sid, size, file=self.logfile)
         sectors = []
         s = start_sid
         if size is None:
@@ -402,7 +402,7 @@ class CompDoc(object):
                 )
 
     def _locate_stream(self, mem, base, sat, sec_size, start_sid, expected_stream_size, qname, seen_id):
-        # print >> self.logfile, "_locate_stream", base, sec_size, start_sid, expected_stream_size
+        # print("_locate_stream", base, sec_size, start_sid, expected_stream_size, file=self.logfile)
         s = start_sid
         if s < 0:
             raise CompDocError("_locate_stream: start_sid (%d) is -ve" % start_sid)
@@ -437,12 +437,12 @@ class CompDoc(object):
             s = sat[s]
         assert s == EOCSID
         assert tot_found == found_limit
-        # print >> self.logfile, "_locate_stream(%s): seen" % qname; dump_list(self.seen, 20, self.logfile)
+        # print("_locate_stream(%s): seen" % qname, file=self.logfile); dump_list(self.seen, 20, self.logfile)
         if not slices:
             # The stream is contiguous ... just what we like!
             return (mem, start_pos, expected_stream_size)
         slices.append((start_pos, end_pos))
-        # print >> self.logfile, "+++>>> %d fragments" % len(slices)
+        # print("+++>>> %d fragments" % len(slices), file=self.logfile)
         return (b''.join([mem[start_pos:end_pos] for start_pos, end_pos in slices]), 0, expected_stream_size)
 
 # ==========================================================================================

@@ -439,26 +439,26 @@ def adjust_cell_addr_biff_le7(
 def get_cell_addr(data, pos, bv, reldelta, browx=None, bcolx=None):
     if bv >= 80:
         rowval, colval = unpack("<HH", data[pos:pos+4])
-        # print "    rv=%04xh cv=%04xh" % (rowval, colval)
+        # print("    rv=%04xh cv=%04xh" % (rowval, colval))
         return adjust_cell_addr_biff8(rowval, colval, reldelta, browx, bcolx)
     else:
         rowval, colval = unpack("<HB", data[pos:pos+3])
-        # print "    rv=%04xh cv=%04xh" % (rowval, colval)
+        # print("    rv=%04xh cv=%04xh" % (rowval, colval))
         return adjust_cell_addr_biff_le7(
                     rowval, colval, reldelta, browx, bcolx)
 
 def get_cell_range_addr(data, pos, bv, reldelta, browx=None, bcolx=None):
     if bv >= 80:
         row1val, row2val, col1val, col2val = unpack("<HHHH", data[pos:pos+8])
-        # print "    rv=%04xh cv=%04xh" % (row1val, col1val)
-        # print "    rv=%04xh cv=%04xh" % (row2val, col2val)
+        # print("    rv=%04xh cv=%04xh" % (row1val, col1val))
+        # print("    rv=%04xh cv=%04xh" % (row2val, col2val))
         res1 = adjust_cell_addr_biff8(row1val, col1val, reldelta, browx, bcolx)
         res2 = adjust_cell_addr_biff8(row2val, col2val, reldelta, browx, bcolx)
         return res1, res2
     else:
         row1val, row2val, col1val, col2val = unpack("<HHBB", data[pos:pos+6])
-        # print "    rv=%04xh cv=%04xh" % (row1val, col1val)
-        # print "    rv=%04xh cv=%04xh" % (row2val, col2val)
+        # print("    rv=%04xh cv=%04xh" % (row1val, col1val))
+        # print("    rv=%04xh cv=%04xh" % (row2val, col2val))
         res1 = adjust_cell_addr_biff_le7(
                     row1val, col1val, reldelta, browx, bcolx)
         res2 = adjust_cell_addr_biff_le7(
@@ -1173,14 +1173,14 @@ def evaluate_name_formula(bk, nobj, namex, blah=0, level=0):
             # res = get_cell_addr(data, pos+1, bv, reldelta=1)
             # # note *ALL* tRefN usage has signed offset for relative addresses
             # any_rel = 1
-            # if blah: print >> bk.logfile, "   ", res
+            # if blah: print("   ", res, file=bk.logfile)
             # spush(res)
         elif opcode == 0x0D: #tAreaN
             not_in_name_formula(op, oname)
             # res = get_cell_range_addr(data, pos+1, bv, reldelta=1)
             # # note *ALL* tAreaN usage has signed offset for relative addresses
             # any_rel = 1
-            # if blah: print >> bk.logfile, "   ", res
+            # if blah: print("   ", res, file=bk.logfile)
         elif opcode == 0x1A: # tRef3d
             if bv >= 80:
                 res = get_cell_addr(data, pos+3, bv, reldelta)
@@ -1713,7 +1713,7 @@ def decompile_formula(bk, fmla, fmlalen,
             # res = get_cell_range_addr(data, pos+1, bv, reldelta, browx, bcolx)
             # # note *ALL* tAreaN usage has signed offset for relative addresses
             # any_rel = 1
-            # if blah: print >> bk.logfile, "   ", res
+            # if blah: print("   ", res, file=bk.logfile)
             res1, res2 = get_cell_range_addr(
                             data, pos+1, bv, reldelta, browx, bcolx)
             if blah: print("  ", res1, res2, file=bk.logfile)
@@ -1814,7 +1814,7 @@ def decompile_formula(bk, fmla, fmlalen,
                 print("   origrefx=%d refx=%d tgtnamex=%d dodgy=%d" \
                     % (origrefx, refx, tgtnamex, dodgy), file=bk.logfile)
             # if tgtnamex == namex:
-            #     if blah: print >> bk.logfile, "!!!! Self-referential !!!!"
+            #     if blah: print("!!!! Self-referential !!!!", file=bk.logfile)
             #     dodgy = any_err = 1
             if not dodgy:
                 if bv >= 80:

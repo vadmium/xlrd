@@ -323,7 +323,7 @@ from .sheet import empty_cell
 from .xldate import XLDateError, xldate_as_tuple
 
 if sys.version.startswith("IronPython"):
-    # print >> sys.stderr, "...importing encodings"
+    # print("...importing encodings", file=sys.stderr)
     import encodings
 
 try:

@@ -681,7 +681,7 @@ class Sheet(BaseObject):
             if self.formatting_info:
                 self._cell_xf_indexes[rowx][colx] = xf_index
         except IndexError:
-            # print >> self.logfile, "put_cell extending", rowx, colx
+            # print("put_cell extending", rowx, colx, file=self.logfile)
             # self.extend_cells(rowx+1, colx+1)
             # self._put_cell_exceptions += 1
             nr = rowx + 1
@@ -767,13 +767,13 @@ class Sheet(BaseObject):
         txos = {}
         eof_found = 0
         while 1:
-            # if DEBUG: print "SHEET.READ: about to read from position %d" % bk._position
+            # if DEBUG: print("SHEET.READ: about to read from position %d" % bk._position)
             rc, data_len, data = bk_get_record_parts()
             # if rc in rc_stats:
             #     rc_stats[rc] += 1
             # else:
             #     rc_stats[rc] = 1
-            # if DEBUG: print "SHEET.READ: op 0x%04x, %d bytes %r" % (rc, data_len, data)
+            # if DEBUG: print("SHEET.READ: op 0x%04x, %d bytes %r" % (rc, data_len, data))
             if rc == XL_NUMBER:
                 # [:14] in following stmt ignores extraneous rubbish at end of record.
                 # Sample file testEON-8.xls supplied by Jan Kraus.
@@ -784,7 +784,7 @@ class Sheet(BaseObject):
                 self_put_cell(rowx, colx, None, d, xf_index)
             elif rc == XL_LABELSST:
                 rowx, colx, xf_index, sstindex = local_unpack('<HHHi', data)
-                # print "LABELSST", rowx, colx, sstindex, bk._sharedstrings[sstindex]
+                # print("LABELSST", rowx, colx, sstindex, bk._sharedstrings[sstindex])
                 self_put_cell(rowx, colx, XL_CELL_TEXT, bk._sharedstrings[sstindex], xf_index)
                 if do_sst_rich_text:
                     runlist = bk._rich_text_runlist_map.get(sstindex)
@@ -886,7 +886,7 @@ class Sheet(BaseObject):
                         header="--- sh #%d, rowx=%d ---" % (self.number, rowx))
             elif rc in XL_FORMULA_OPCODES: # 06, 0206, 0406
                 # DEBUG = 1
-                # if DEBUG: print "FORMULA: rc: 0x%04x data: %r" % (rc, data)
+                # if DEBUG: print("FORMULA: rc: 0x%04x data: %r" % (rc, data))
                 if bv >= 50:
                     rowx, colx, xf_index, result_str, flags = local_unpack('<HHH8sH', data[0:16])
                     lenlen = 2
@@ -935,16 +935,16 @@ class Sheet(BaseObject):
                             elif rc2 not in XL_SHRFMLA_ETC_ETC:
                                 raise XLRDError(
                                     "Expected SHRFMLA, ARRAY, TABLEOP* or STRING record; found 0x%04x" % rc2)
-                            # if DEBUG: print "gotstring:", gotstring
+                            # if DEBUG: print("gotstring:", gotstring)
                         # now for the STRING record
                         if not gotstring:
                             rc2, _unused_len, data2 = bk.get_record_parts()
                             if rc2 not in (XL_STRING, XL_STRING_B2):
                                 raise XLRDError("Expected STRING record; found 0x%04x" % rc2)
-                        # if DEBUG: print "STRING: data=%r BIFF=%d cp=%d" % (data2, self.biff_version, bk.encoding)
+                        # if DEBUG: print("STRING: data=%r BIFF=%d cp=%d" % (data2, self.biff_version, bk.encoding))
                         strg = self.string_record_contents(data2)
                         self.put_cell(rowx, colx, XL_CELL_TEXT, strg, xf_index)
-                        # if DEBUG: print "FORMULA strg %r" % strg
+                        # if DEBUG: print("FORMULA strg %r" % strg)
                     elif first_byte == 1:
                         # boolean formula result
                         value = BYTES_ORD(result_str[2])
@@ -967,7 +967,7 @@ class Sheet(BaseObject):
                 # Note OOo Calc 2.0 writes 9-byte BOOLERR records.
                 # OOo docs say 8. Excel writes 8.
                 cellty = (XL_CELL_BOOLEAN, XL_CELL_ERROR)[is_err]
-                # if DEBUG: print "XL_BOOLERR", rowx, colx, xf_index, value, is_err
+                # if DEBUG: print("XL_BOOLERR", rowx, colx, xf_index, value, is_err)
                 self_put_cell(rowx, colx, cellty, value, xf_index)
             elif rc == XL_COLINFO:
                 if not fmt_info: continue
@@ -1031,7 +1031,7 @@ class Sheet(BaseObject):
             elif rc == XL_BLANK:
                 if not fmt_info: continue
                 rowx, colx, xf_index = local_unpack('<HHH', data[:6])
-                # if 0: print >> self.logfile, "BLANK", rowx, colx, xf_index
+                # if 0: print("BLANK", rowx, colx, xf_index, file=self.logfile)
                 self_put_cell(rowx, colx, XL_CELL_BLANK, '', xf_index)
             elif rc == XL_MULBLANK: # 00BE
                 if not fmt_info: continue
@@ -1039,7 +1039,7 @@ class Sheet(BaseObject):
                 result = local_unpack("<%dH" % nitems, data)
                 rowx, mul_first = result[:2]
                 mul_last = result[-1]
-                # print >> self.logfile, "MULBLANK", rowx, mul_first, mul_last, data_len, nitems, mul_last + 4 - mul_first
+                # print("MULBLANK", rowx, mul_first, mul_last, data_len, nitems, mul_last + 4 - mul_first, file=self.logfile)
                 assert nitems == mul_last + 4 - mul_first
                 pos = 2
                 for colx in xrange(mul_first, mul_last + 1):
@@ -1141,7 +1141,7 @@ class Sheet(BaseObject):
                 olist = [] # updated by the function
                 pos = unpack_cell_range_address_list_update_pos(
                     olist, data, 12, bv, addr_size=8)
-                # print >> self.logfile, repr(result), len(result)
+                # print(repr(result), len(result), file=self.logfile)
                 if self.verbosity >= 1:
                     fprintf(self.logfile,
                         "*** %d individual range(s):\n" \
@@ -1352,7 +1352,7 @@ class Sheet(BaseObject):
                 elif rc == XL_BOOLERR_B2:
                     rowx, colx, cell_attr, value, is_err = local_unpack('<HH3sBB', data)
                     cellty = (XL_CELL_BOOLEAN, XL_CELL_ERROR)[is_err]
-                    # if DEBUG: print "XL_BOOLERR_B2", rowx, colx, cell_attr, value, is_err
+                    # if DEBUG: print("XL_BOOLERR_B2", rowx, colx, cell_attr, value, is_err)
                     self_put_cell(rowx, colx, cellty, value, self.fixed_BIFF2_xfindex(cell_attr, rowx, colx))
                 elif rc == XL_BLANK_B2:
                     if not fmt_info: continue
@@ -1461,7 +1461,7 @@ class Sheet(BaseObject):
                     self.cached_page_break_preview_mag_factor = 0 # default (60%)
                     self.cached_normal_view_mag_factor = 0 # default (100%)
             else:
-                # if DEBUG: print "SHEET.READ: Unhandled record type %02x %d bytes %r" % (rc, data_len, data)
+                # if DEBUG: print("SHEET.READ: Unhandled record type %02x %d bytes %r" % (rc, data_len, data))
                 pass
         if not eof_found:
             raise XLRDError("Sheet %d (%r) missing EOF record" \
@@ -1999,7 +1999,7 @@ class Sheet(BaseObject):
         totruns = 0
         while totruns < cbRuns: # counts of BYTES, not runs
             rc3, data3_len, data3 = self.book.get_record_parts()
-            # print totruns, cbRuns, rc3, data3_len, repr(data3)
+            # print(totruns, cbRuns, rc3, data3_len, repr(data3))
             assert rc3 == XL_CONTINUE
             assert data3_len % 8 == 0
             for pos in xrange(0, data3_len, 8):

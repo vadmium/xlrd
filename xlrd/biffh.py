@@ -299,7 +299,7 @@ def unpack_unicode(data, pos, lenlen=2):
     if options & 0x01:
         # Uncompressed UTF-16-LE
         rawstrg = data[pos:pos+2*nchars]
-        # if DEBUG: print "nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
+        # if DEBUG: print("nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg))
         strg = rawstrg.decode('utf_16_le')
         # pos += 2*nchars
     else:

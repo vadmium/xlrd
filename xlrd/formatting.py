@@ -502,7 +502,7 @@ def is_date_format_string(book, fmt):
             num_count += num_char_dict[c]
         elif c == separator:
             got_sep = 1
-    # print num_count, date_count, repr(fmt)
+    # print(num_count, date_count, repr(fmt))
     if date_count and not num_count:
         return True
     if num_count and not date_count:
@@ -550,7 +550,7 @@ def handle_format(self, data, rectype=XL_FORMAT):
         # N.B. Gnumeric incorrectly starts these at 50 instead of 164 :-(
         # if earlier than BIFF 5, standard info is useless
         std_ty = std_format_code_types.get(fmtkey, FUN)
-        # print "std ty", std_ty
+        # print("std ty", std_ty)
         is_date_c = std_ty == FDT
         if self.verbosity and 0 < fmtkey < 50 and (is_date_c ^ is_date_s):
             DEBUG = 2
