@@ -274,7 +274,7 @@ def upkbitsL(tgt_obj, src, manifest, local_setattr=setattr, local_int=int):
 def unpack_string(data, pos, encoding, lenlen=1):
     nchars = unpack('<' + 'BH'[lenlen-1], data[pos:pos+lenlen])[0]
     pos += lenlen
-    return unicode(data[pos:pos+nchars], encoding)
+    return data[pos:pos+nchars].decode(encoding)
 
 def unpack_string_update_pos(data, pos, encoding, lenlen=1, known_len=None):
     if known_len is not None:
@@ -284,7 +284,7 @@ def unpack_string_update_pos(data, pos, encoding, lenlen=1, known_len=None):
         nchars = unpack('<' + 'BH'[lenlen-1], data[pos:pos+lenlen])[0]
         pos += lenlen
     newpos = pos + nchars
-    return (unicode(data[pos:newpos], encoding), newpos)
+    return (data[pos:newpos].decode(encoding), newpos)
 
 def unpack_unicode(data, pos, lenlen=2):
     "Return unicode_strg"
@@ -308,7 +308,7 @@ def unpack_unicode(data, pos, lenlen=2):
         # Uncompressed UTF-16-LE
         rawstrg = data[pos:pos+2*nchars]
         # if DEBUG: print "nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
-        strg = unicode(rawstrg, 'utf_16_le')
+        strg = rawstrg.decode('utf_16_le')
         # pos += 2*nchars
     else:
         # Note: this is COMPRESSED (not ASCII!) encoding!!!
@@ -316,7 +316,7 @@ def unpack_unicode(data, pos, lenlen=2):
         # if the local codepage was cp1252 -- however this would rapidly go pear-shaped
         # for other codepages so we grit our Anglocentric teeth and return Unicode :-)
 
-        strg = unicode(data[pos:pos+nchars], "latin_1")
+        strg = data[pos:pos+nchars].decode("latin_1")
         # pos += nchars
     # if richtext:
     #     pos += 4 * rt
@@ -348,11 +348,11 @@ def unpack_unicode_update_pos(data, pos, lenlen=2, known_len=None):
         pos += 4
     if options & 0x01:
         # Uncompressed UTF-16-LE
-        strg = unicode(data[pos:pos+2*nchars], 'utf_16_le')
+        strg = data[pos:pos+2*nchars].decode('utf_16_le')
         pos += 2*nchars
     else:
         # Note: this is COMPRESSED (not ASCII!) encoding!!!
-        strg = unicode(data[pos:pos+nchars], "latin_1")
+        strg = data[pos:pos+nchars].decode("latin_1")
         pos += nchars
     if richtext:
         pos += 4 * rt

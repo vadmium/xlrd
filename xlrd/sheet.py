@@ -1490,7 +1490,7 @@ class Sheet(BaseObject):
                 flag = BYTES_ORD(data[offset]) & 1
                 enc = ("latin_1", "utf_16_le")[flag]
                 offset += 1
-            chunk = unicode(data[offset:], enc)
+            chunk = data[offset:].decode(enc)
             result += chunk
             nchars_found += len(chunk)
             if nchars_found == nchars_expected:
@@ -1712,7 +1712,7 @@ class Sheet(BaseObject):
         def get_nul_terminated_unicode(buf, ofs):
             nb = unpack('<L', buf[ofs:ofs+4])[0] * 2
             ofs += 4
-            uc = unicode(buf[ofs:ofs+nb], 'UTF-16le')[:-1]
+            uc = buf[ofs:ofs+nb].decode('UTF-16le')[:-1]
             ofs += nb
             return uc, ofs
 
@@ -1733,7 +1733,8 @@ class Sheet(BaseObject):
                 h.type = UNICODE_LITERAL('url')
                 nbytes = unpack('<L', data[offset:offset + 4])[0]
                 offset += 4
-                h.url_or_path = unicode(data[offset:offset + nbytes], 'UTF-16le')
+                h.url_or_path = data[offset:offset + nbytes]
+                h.url_or_path = h.url_or_path.decode('UTF-16le')
                 if DEBUG: print("initial url=%r len=%d" % (h.url_or_path, len(h.url_or_path)), file=self.logfile)
                 endpos = h.url_or_path.find('\x00')
                 if DEBUG: print("endpos=%d" % endpos, file=self.logfile)
@@ -1764,7 +1765,7 @@ class Sheet(BaseObject):
                     xl = unpack('<i', data[offset:offset + 4])[0]
                     offset += 4
                     offset += 2 # "unknown byte sequence" MS: 0x0003
-                    extended_path = unicode(data[offset:offset + xl], 'UTF-16le') # not zero-terminated
+                    extended_path = data[offset:offset + xl].decode('UTF-16le') # not zero-terminated
                     offset += xl
                     h.url_or_path = extended_path
                 else:
@@ -1799,7 +1800,7 @@ class Sheet(BaseObject):
         h = self.hyperlink_list[-1]
         assert (frowx, lrowx, fcolx, lcolx) == (h.frowx, h.lrowx, h.fcolx, h.lcolx)
         assert data[-2:] == b'\x00\x00'
-        h.quicktip = unicode(data[10:-2], 'utf_16_le')
+        h.quicktip = data[10:-2].decode('utf_16_le')
 
     def handle_msodrawingetc(self, recid, data_len, data):
         if not OBJ_MSO_DEBUG:
@@ -1919,7 +1920,7 @@ class Sheet(BaseObject):
                 expected_bytes -= nb
             assert expected_bytes == 0
             enc = self.book.encoding or self.book.derive_encoding()
-            o.text = unicode(b''.join(pieces), enc)
+            o.text = b''.join(pieces).decode(enc)
             o.rich_text_runlist = [(0, 0)]
             o.show = 0
             o.row_hidden = 0

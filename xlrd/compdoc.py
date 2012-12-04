@@ -48,7 +48,7 @@ class DirNode(object):
         if cbufsize == 0:
             self.name = UNICODE_LITERAL('')
         else:
-            self.name = unicode(dent[0:cbufsize-2], 'utf_16_le') # omit the trailing U+0000
+            self.name = dent[0:cbufsize-2].decode('utf_16_le') # omit the trailing U+0000
         self.children = [] # filled in later
         self.parent = -1 # indicates orphan; fixed up later
         self.tsinfo = unpack('<IIII', dent[100:116])

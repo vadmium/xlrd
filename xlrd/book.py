@@ -802,7 +802,7 @@ class Book(BaseObject):
             # If we don't have a codec that can decode ASCII into Unicode,
             # we're well & truly stuffed -- let the punter know ASAP.
             try:
-                _unused = unicode(b'trial', self.encoding)
+                _unused = b'trial'.decode(self.encoding)
             except:
                 ei = sys.exc_info()[:2]
                 fprintf(self.logfile,
@@ -896,7 +896,7 @@ class Book(BaseObject):
                     }.get(ty, "Not encoded")
                 print("   %3d chars, type is %d (%s)" % (nc, ty, msg), file=self.logfile)
             if ty == 3:
-                sheet_name = unicode(data[2:nc+2], self.encoding)
+                sheet_name = data[2:nc+2].decode(self.encoding)
                 self._extnsht_name_from_num[self._extnsht_count] = sheet_name
                 if blah2: print(self._extnsht_name_from_num, file=self.logfile)
             if not (1 <= ty <= 4):
@@ -1400,7 +1400,7 @@ def unpack_SST_table(datatab, nstrings):
                 rawstrg = data[pos:pos+2*charsavail]
                 # if DEBUG: print "SST U16: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
                 try:
-                    accstrg += unicode(rawstrg, "utf_16_le")
+                    accstrg += rawstrg.decode("utf_16_le")
                 except:
                     # print "SST U16: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
                     # Probable cause: dodgy data e.g. unfinished surrogate pair.
@@ -1414,7 +1414,7 @@ def unpack_SST_table(datatab, nstrings):
                 charsavail = local_min(datalen - pos, charsneed)
                 rawstrg = data[pos:pos+charsavail]
                 # if DEBUG: print "SST CMPRSD: nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
-                accstrg += unicode(rawstrg, latin_1)
+                accstrg += rawstrg.decode(latin_1)
                 pos += charsavail
             charsgot += charsavail
             if charsgot == nchars:
