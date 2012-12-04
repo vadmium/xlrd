@@ -121,10 +121,10 @@ class Sheet(BaseObject):
     # <pre>
     # for crange in thesheet.col_label_ranges:
     #     rlo, rhi, clo, chi = crange
-    #     for rx in xrange(rlo, rhi):
-    #         for cx in xrange(clo, chi):
-    #             print "Column label at (rowx=%d, colx=%d) is %r" \
-    #                 (rx, cx, thesheet.cell_value(rx, cx))
+    #     for rx in range(rlo, rhi):
+    #         for cx in range(clo, chi):
+    #             print("Column label at (rowx=%d, colx=%d) is %r"
+    #                 (rx, cx, thesheet.cell_value(rx, cx)))
     # </pre>
     col_label_ranges = []
 
