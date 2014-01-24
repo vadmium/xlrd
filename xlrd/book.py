@@ -1,8 +1,6 @@
-# -*- coding: ascii -*-
-
-# <p>Copyright (c) 2005-2012 Stephen John Machin, Lingfo Pty Ltd</p>
-# <p>This module is part of the xlrd package, which is released under a
-# BSD-style licence.</p>
+# Copyright (c) 2005-2012 Stephen John Machin, Lingfo Pty Ltd
+# This module is part of the xlrd package, which is released under a
+# BSD-style licence.
 
 from __future__ import print_function
 
@@ -13,7 +11,6 @@ import sys
 import time
 from . import sheet
 from . import compdoc
-from .xldate import xldate_as_tuple, XLDateError
 from .formula import *
 from . import formatting
 if sys.version.startswith("IronPython"):
@@ -69,7 +66,7 @@ for _bin, _bic in _code_from_builtin_name.items():
 del _bin, _bic, _code_from_builtin_name
 
 def open_workbook_xls(filename=None,
-    logfile=sys.stdout, verbosity=0, pickleable=True, use_mmap=USE_MMAP,
+    logfile=sys.stdout, verbosity=0, use_mmap=USE_MMAP,
     file_contents=None,
     encoding_override=None,
     formatting_info=False, on_demand=False, ragged_rows=False,
@@ -83,7 +80,7 @@ def open_workbook_xls(filename=None,
     try:
         bk.biff2_8_load(
             filename=filename, file_contents=file_contents,
-            logfile=logfile, verbosity=verbosity, pickleable=pickleable, use_mmap=use_mmap,
+            logfile=logfile, verbosity=verbosity, use_mmap=use_mmap,
             encoding_override=encoding_override,
             formatting_info=formatting_info,
             on_demand=on_demand,
@@ -553,7 +550,7 @@ class Book(BaseObject):
         self.filestr = b''
 
     def biff2_8_load(self, filename=None, file_contents=None,
-        logfile=sys.stdout, verbosity=0, pickleable=True, use_mmap=USE_MMAP,
+        logfile=sys.stdout, verbosity=0, use_mmap=USE_MMAP,
         encoding_override=None,
         formatting_info=False,
         on_demand=False,
@@ -562,7 +559,6 @@ class Book(BaseObject):
         # DEBUG = 0
         self.logfile = logfile
         self.verbosity = verbosity
-        self.pickleable = pickleable
         self.use_mmap = use_mmap and MMAP_AVAILABLE
         self.encoding_override = encoding_override
         self.formatting_info = formatting_info
@@ -757,9 +753,10 @@ class Book(BaseObject):
                 6: 'Visual Basic module',
                 }.get(sheet_type, 'UNKNOWN')
 
-            fprintf(self.logfile,
-                "NOTE *** Ignoring non-worksheet data named %r (type 0x%02x = %s)\n",
-                sheet_name, sheet_type, descr)
+            if DEBUG or self.verbosity >= 1:
+                fprintf(self.logfile,
+                    "NOTE *** Ignoring non-worksheet data named %r (type 0x%02x = %s)\n",
+                    sheet_name, sheet_type, descr)
         else:
             snum = len(self._sheet_names)
             self._all_sheets_map.append(snum)
@@ -965,9 +962,11 @@ class Book(BaseObject):
         nobj.excel_sheet_index = sheet_index
         nobj.scope = None # patched up in the names_epilogue() method
         if blah:
-            print("NAME[%d]:%s oflags=%d, name_len=%d, fmla_len=%d, extsht_index=%d, sheet_index=%d, name=%r" \
-                % (name_index, macro_flag, option_flags, name_len,
-                fmla_len, extsht_index, sheet_index, internal_name), file=self.logfile)
+            fprintf(
+                self.logfile,
+                "NAME[%d]:%s oflags=%d, name_len=%d, fmla_len=%d, extsht_index=%d, sheet_index=%d, name=%r\n",
+                name_index, macro_flag, option_flags, name_len,
+                fmla_len, extsht_index, sheet_index, internal_name)
         name = internal_name
         if nobj.builtin:
             name = builtin_name_from_code.get(name, "??Unknown??")
@@ -988,9 +987,9 @@ class Book(BaseObject):
         f = self.logfile
         if blah:
             print("+++++ names_epilogue +++++", file=f)
-            print("_all_sheets_map", self._all_sheets_map, file=f)
-            print("_extnsht_name_from_num", self._extnsht_name_from_num, file=f)
-            print("_sheet_num_from_name", self._sheet_num_from_name, file=f)
+            print("_all_sheets_map", REPR(self._all_sheets_map), file=f)
+            print("_extnsht_name_from_num", REPR(self._extnsht_name_from_num), file=f)
+            print("_sheet_num_from_name", REPR(self._sheet_num_from_name), file=f)
         num_names = len(self.name_obj_list)
         for namex in range(num_names):
             nobj = self.name_obj_list[namex]
@@ -1040,22 +1039,20 @@ class Book(BaseObject):
             nobj = self.name_obj_list[namex]
             name_lcase = nobj.name.lower()
             key = (name_lcase, nobj.scope)
-            if key in name_and_scope_map:
-                msg = 'Duplicate entry %r in name_and_scope_map' % (key, )
-                if 0:
-                    raise XLRDError(msg)
-                else:
-                    if self.verbosity:
-                        print(msg, file=f)
+            if key in name_and_scope_map and self.verbosity:
+                fprintf(f, 'Duplicate entry %r in name_and_scope_map\n', key)
             name_and_scope_map[key] = nobj
+            sort_data = (nobj.scope, namex, nobj)
+            # namex (a temp unique ID) ensures the Name objects will not
+            # be compared (fatal in py3)
             if name_lcase in name_map:
-                name_map[name_lcase].append((nobj.scope, nobj))
+                name_map[name_lcase].append(sort_data)
             else:
-                name_map[name_lcase] = [(nobj.scope, nobj)]
+                name_map[name_lcase] = [sort_data]
         for key in name_map.keys():
             alist = name_map[key]
             alist.sort()
-            name_map[key] = [x[1] for x in alist]
+            name_map[key] = [x[2] for x in alist]
         self.name_and_scope_map = name_and_scope_map
         self.name_map = name_map
 
@@ -1092,10 +1089,10 @@ class Book(BaseObject):
         url, pos = unpack_unicode_update_pos(data, 2, lenlen=2)
         if num_sheets == 0:
             self._supbook_types[-1] = SUPBOOK_DDEOLE
-            if blah: print("SUPBOOK[%d]: DDE/OLE document = %r" % (sbn, url), file=self.logfile)
+            if blah: fprintf(self.logfile, "SUPBOOK[%d]: DDE/OLE document = %r\n", sbn, url)
             return
         self._supbook_types[-1] = SUPBOOK_EXTERNAL
-        if blah: print("SUPBOOK[%d]: url = %r" % (sbn, url), file=self.logfile)
+        if blah: fprintf(self.logfile, "SUPBOOK[%d]: url = %r\n", sbn, url)
         sheet_names = []
         for x in range(num_sheets):
             try:
@@ -1110,7 +1107,7 @@ class Book(BaseObject):
                         ), file=self.logfile)
                 break
             sheet_names.append(shname)
-            if blah: print("  sheetx=%d namelen=%d name=%r (next pos=%d)" % (x, len(shname), shname, pos), file=self.logfile)
+            if blah: fprintf(self.logfile, "  sheetx=%d namelen=%d name=%r (next pos=%d)\n", x, len(shname), shname, pos)
 
     def handle_sheethdr(self, data):
         # This a BIFF 4W special.
@@ -1125,7 +1122,7 @@ class Book(BaseObject):
         self._sheethdr_count += 1
         BOF_posn = self._position
         posn = BOF_posn - 4 - len(data)
-        if DEBUG: print('SHEETHDR %d at posn %d: len=%d name=%r' % (sheetno, posn, sheet_len, sheet_name), file=self.logfile)
+        if DEBUG: fprintf(self.logfile, 'SHEETHDR %d at posn %d: len=%d name=%r\n', sheetno, posn, sheet_len, sheet_name)
         self.initialise_format_info()
         if DEBUG: print('SHEETHDR: xf epilogue flag is %d' % self._xf_epilogue_done, file=self.logfile)
         self._sheet_list.append(None) # get_sheet updates _sheet_list but needs a None beforehand
@@ -1165,7 +1162,7 @@ class Book(BaseObject):
             print("SST processing took %.2f seconds" % (t1 - t0, ), file=self.logfile)
 
     def handle_writeaccess(self, data):
-        # DEBUG = 0
+        DEBUG = 0
         if self.biff_version < 80:
             if not self.encoding:
                 self.raw_user_name = True
@@ -1174,7 +1171,7 @@ class Book(BaseObject):
             strg = unpack_string(data, 0, self.encoding, lenlen=1)
         else:
             strg = unpack_unicode(data, 0, lenlen=2)
-        if DEBUG: print("WRITEACCESS: %d bytes; raw=%d %r" % (len(data), self.raw_user_name, strg), file=self.logfile)
+        if DEBUG: fprintf(self.logfile, "WRITEACCESS: %d bytes; raw=%s %r\n", len(data), self.raw_user_name, strg)
         strg = strg.rstrip()
         self.user_name = strg
 
@@ -1222,8 +1219,8 @@ class Book(BaseObject):
             elif rc == XL_STYLE:
                 self.handle_style(data)
             elif rc & 0xff == 9 and self.verbosity:
-                print("*** Unexpected BOF at posn %d: 0x%04x len=%d data=%r" \
-                    % (self._position - length - 4, rc, length, data), file=self.logfile)
+                fprintf(self.logfile, "*** Unexpected BOF at posn %d: 0x%04x len=%d data=%r\n",
+                    self._position - length - 4, rc, length, data)
             elif rc ==  XL_EOF:
                 self.xf_epilogue()
                 self.names_epilogue()
@@ -1268,7 +1265,7 @@ class Book(BaseObject):
                 % (length, opcode))
         padding = b'\0' * max(0, boflen[opcode] - length)
         data = self.read(self._position, length);
-        if DEBUG: print("\ngetbof(): data=%r" % data, file=self.logfile)
+        if DEBUG: fprintf(self.logfile, "\ngetbof(): data=%r\n", data)
         if len(data) < length:
             bof_error('Incomplete BOF record[2]; met end of file')
         data += padding

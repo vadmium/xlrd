@@ -390,12 +390,7 @@ tAttrNames = {
     0x41: "SpaceVolatile",
     }
 
-_error_opcodes = {}
-for _x in [0x07, 0x08, 0x0A, 0x0B, 0x1C, 0x1D, 0x2F]:
-    _error_opcodes[_x] = 1
-
-def is_error_opcode(c):
-    return c in _error_opcodes
+error_opcodes = set([0x07, 0x08, 0x0A, 0x0B, 0x1C, 0x1D, 0x2F])
 
 tRangeFuncs = (min, max, min, max, min, max)
 tIsectFuncs = (max, min, max, min, max, min)
@@ -623,11 +618,6 @@ class Operand(object):
         return "Operand(kind=%s, value=%r, text=%r)" \
             % (kind_text, self.value, self.text)
 
-if CAN_SUBCLASS_BUILTIN:
-    _ref3d_base = tuple
-else:
-    _ref3d_base = object
-
 ##
 # <p>Represents an absolute or relative 3-dimensional reference to a box
 # of one or more cells.<br />
@@ -661,7 +651,7 @@ else:
 # a reference has been noticed: a 2D reference located in the "current sheet".
 # <br /> This will appear as coords = (0, 1, ...) and relflags = (1, 1, ...).
 
-class Ref3D(_ref3d_base):
+class Ref3D(tuple):
 
     def __init__(self, atuple):
         self.coords = atuple[0:6]
@@ -688,11 +678,6 @@ tConcat = 0x08
 tLT, tLE, tEQ, tGE, tGT, tNE = range(0x09, 0x0F)
 
 import operator as opr
-
-try:
-    from operator import truediv
-except:
-    from operator import div as truediv
 
 def nop(x):
     return x
@@ -723,7 +708,7 @@ binop_rules = {
     tAdd:   (_arith_argdict, oNUM, opr.add,  30, '+'),
     tSub:   (_arith_argdict, oNUM, opr.sub,  30, '-'),
     tMul:   (_arith_argdict, oNUM, opr.mul,  40, '*'),
-    tDiv:   (_arith_argdict, oNUM, truediv,  40, '/'),
+    tDiv:   (_arith_argdict, oNUM, opr.truediv,  40, '/'),
     tPower: (_arith_argdict, oNUM, _opr_pow, 50, '^',),
     tConcat:(_strg_argdict, oSTRG, opr.add,  20, '&'),
     tLT:    (_cmp_argdict, oBOOL, _opr_lt,   10, '<'),
@@ -797,7 +782,7 @@ def evaluate_name_formula(bk, nobj, namex, blah=0, level=0):
         aval = aconv(aop.value)
         result = func(aval, bval)
         if result_kind == oBOOL:
-            result = intbool(result) # -> 1 or 0
+            result = 1 if result else 0
         resop.value = result
         stk.append(resop)
 
@@ -1330,7 +1315,7 @@ def evaluate_name_formula(bk, nobj, namex, blah=0, level=0):
                 if blah:
                     print("    tNameX: setting text to", repr(res.text), file=bk.logfile)
             spush(res)
-        elif is_error_opcode(opcode):
+        elif opcode in error_opcodes:
             any_err = 1
             spush(error_opnd)
         else:
@@ -1342,8 +1327,8 @@ def evaluate_name_formula(bk, nobj, namex, blah=0, level=0):
         pos += sz
     any_rel = not not any_rel
     if blah:
-        print("End of formula. level=%d any_rel=%d any_err=%d stack=%r" % \
-            (level, not not any_rel, any_err, stack), file=bk.logfile)
+        fprintf(bk.logfile, "End of formula. level=%d any_rel=%d any_err=%d stack=%r\n",
+            level, not not any_rel, any_err, stack)
         if len(stack) >= 2:
             print("*** Stack has unprocessed args", file=bk.logfile)
         print(file=bk.logfile)
@@ -1696,8 +1681,7 @@ def decompile_formula(bk, fmla, fmlalen,
             rowx2, colx2, row_rel2, col_rel2 = res2
             coords = (rowx1, rowx2+1, colx1, colx2+1)
             relflags = (row_rel1, row_rel2, col_rel1, col_rel2)
-            is_rel = intbool(sum(relflags))
-            if is_rel:
+            if sum(relflags):  # relative
                 okind = oREL
             else:
                 okind = oREF
@@ -1737,8 +1721,7 @@ def decompile_formula(bk, fmla, fmlalen,
             rowx2, colx2, row_rel2, col_rel2 = res2
             coords = (rowx1, rowx2+1, colx1, colx2+1)
             relflags = (row_rel1, row_rel2, col_rel1, col_rel2)
-            is_rel = intbool(sum(relflags))
-            if is_rel:
+            if sum(relflags):  # relative
                 okind = oREL
             else:
                 okind = oREF
@@ -1864,7 +1847,7 @@ def decompile_formula(bk, fmla, fmlalen,
                     print("    tNameX: setting text to", repr(res.text), file=bk.logfile)
             res = Operand(okind, ovalue, LEAF_RANK, otext)
             spush(res)
-        elif is_error_opcode(opcode):
+        elif opcode in error_opcodes:
             any_err = 1
             spush(error_opnd)
         else:
@@ -2030,7 +2013,7 @@ def dump_formula(bk, data, fmlalen, bv, reldelta, blah=0, isname=0):
         elif opcode == 0x19: # tNameX
             refx, namex = unpack("<HH", data[pos+1:pos+5])
             if blah: print("   refx=%d namex=%d" % (refx, namex), file=bk.logfile)
-        elif is_error_opcode(opcode):
+        elif opcode in error_opcodes:
             any_err = 1
         else:
             if blah: print("FORMULA: /// Not handled yet: t" + oname, file=bk.logfile)

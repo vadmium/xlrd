@@ -4,7 +4,7 @@
 # Implements the minimal functionality required
 # to extract a "Workbook" or "Book" stream (as one big string)
 # from an OLE2 Compound Document file.
-# <p>Copyright © 2005-2012 Stephen John Machin, Lingfo Pty Ltd</p>
+# <p>Copyright ï¿½ 2005-2012 Stephen John Machin, Lingfo Pty Ltd</p>
 # <p>This module is part of the xlrd package, which is released under a BSD-style licence.</p>
 ##
 
@@ -56,9 +56,12 @@ class DirNode(object):
             self.dump(DEBUG)
 
     def dump(self, DEBUG=1):
-        print("DID=%d name=%r etype=%d DIDs(left=%d right=%d root=%d parent=%d kids=%r) first_SID=%d tot_size=%d" \
-            % (self.DID, self.name, self.etype, self.left_DID,
-            self.right_DID, self.root_DID, self.parent, self.children, self.first_SID, self.tot_size), file=self.logfile)
+        fprintf(
+            self.logfile,
+            "DID=%d name=%r etype=%d DIDs(left=%d right=%d root=%d parent=%d kids=%r) first_SID=%d tot_size=%d\n",
+            self.DID, self.name, self.etype, self.left_DID,
+            self.right_DID, self.root_DID, self.parent, self.children, self.first_SID, self.tot_size
+            )
         if DEBUG == 2:
             # cre_lo, cre_hi, mod_lo, mod_hi = tsinfo
             print("timestamp info", self.tsinfo, file=self.logfile)
@@ -127,15 +130,15 @@ class CompDoc(object):
                 % (SAT_tot_secs, self.dir_first_sec_sid, self.min_size_std_stream,), file=logfile)
             print("SSAT_first_sec_sid=%d, SSAT_tot_secs=%d" % (SSAT_first_sec_sid, SSAT_tot_secs,), file=logfile)
             print("MSATX_first_sec_sid=%d, MSATX_tot_secs=%d" % (MSATX_first_sec_sid, MSATX_tot_secs,), file=logfile)
-        nent = int_floor_div(sec_size, 4) # number of SID entries in a sector
+        nent = sec_size // 4 # number of SID entries in a sector
         fmt = "<%di" % nent
         trunc_warned = 0
         #
         # === build the MSAT ===
         #
         MSAT = list(unpack('<109i', mem[76:512]))
-        SAT_sectors_reqd = int_floor_div(mem_data_secs + nent - 1, nent)
-        expected_MSATX_sectors = max(0, int_floor_div(SAT_sectors_reqd - 109 + nent - 2, nent - 1))
+        SAT_sectors_reqd = (mem_data_secs + nent - 1) // nent
+        expected_MSATX_sectors = max(0, (SAT_sectors_reqd - 109 + nent - 2) // (nent - 1))
         actual_MSATX_sectors = 0
         if MSATX_tot_secs == 0 and MSATX_first_sec_sid in (EOCSID, FREESID, 0):
             # Strictly, if there is no MSAT extension, then MSATX_first_sec_sid
@@ -323,9 +326,9 @@ class CompDoc(object):
                         )
             assert s == EOCSID
             if todo != 0:
-                print("WARNING *** OLE2 stream %r: expected size %d, actual size %d" \
-                    % (name, size, size - todo), file=self.logfile)
-        # print >> self.logfile, "_get_stream(%s): seen" % name; dump_list(self.seen, 20, self.logfile)
+                fprintf(self.logfile, 
+                    "WARNING *** OLE2 stream %r: expected size %d, actual size %d\n",
+                    name, size, size - todo)
 
         return b''.join(sectors)
 
@@ -380,7 +383,7 @@ class CompDoc(object):
             return (None, 0, 0)
         if d.tot_size > self.mem_data_len:
             raise CompDocError("%r stream length (%d bytes) > file data size (%d bytes)"
-                % (qname, d.totsize, self.mem_data_len))
+                % (qname, d.tot_size, self.mem_data_len))
         if d.tot_size >= self.min_size_std_stream:
             result = self._locate_stream(
                 self.mem, 512, self.SAT, self.sec_size, d.first_SID, 
@@ -408,7 +411,7 @@ class CompDoc(object):
         end_pos = -8888
         slices = []
         tot_found = 0
-        found_limit = int_floor_div(expected_stream_size + sec_size - 1, sec_size)
+        found_limit = (expected_stream_size + sec_size - 1) // sec_size
         while s >= 0:
             if self.seen[s]:
                 print("_locate_stream(%s): seen" % qname, file=self.logfile); dump_list(self.seen, 20, self.logfile)
