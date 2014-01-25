@@ -13,6 +13,7 @@ from . import sheet
 from . import compdoc
 from .formula import *
 from . import formatting
+from os import SEEK_SET, SEEK_END
 if sys.version.startswith("IronPython"):
     # print >> sys.stderr, "...importing encodings"
     import encodings
@@ -565,9 +566,9 @@ class Book(BaseObject):
 
         if not file_contents:
             with open(filename, "rb") as f:
-                f.seek(0, 2) # EOF
+                f.seek(0, SEEK_END)
                 size = f.tell()
-                f.seek(0, 0) # BOF
+                f.seek(0, SEEK_SET)
                 if size == 0:
                     raise XLRDError("File size is 0 bytes")
                 if self.use_mmap:
