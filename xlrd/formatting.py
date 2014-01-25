@@ -34,6 +34,14 @@ from .biffh import BaseObject, unpack_unicode, unpack_string, \
     XL_FORMAT, XL_FORMAT2, \
     XLRDError
 
+_cellty_from_fmtty = {
+    FNU: XL_CELL_NUMBER,
+    FUN: XL_CELL_NUMBER,
+    FGE: XL_CELL_NUMBER,
+    FDT: XL_CELL_DATE,
+    FTX: XL_CELL_NUMBER, # Yes, a number can be formatted as text.
+    }    
+    
 excel_default_palette_b5 = (
     (  0,   0,   0), (255, 255, 255), (255,   0,   0), (  0, 255,   0),
     (  0,   0, 255), (255, 255,   0), (255,   0, 255), (  0, 255, 255),
@@ -460,8 +468,6 @@ def is_date_format_string(book, fmt):
     # TODO: u'[h]\\ \\h\\o\\u\\r\\s' ([h] means don't care about hours > 23)
     state = 0
     s = ''
-    def ignorable(c):
-        return c in skip_char_dict
     
     for c in fmt:
         if state == 0:
@@ -469,7 +475,7 @@ def is_date_format_string(book, fmt):
                 state = 1
             elif c in UNICODE_LITERAL(r"\_*"):
                 state = 2
-            elif ignorable(c):
+            elif c in skip_char_dict:
                 pass
             else:
                 s += c
@@ -481,7 +487,7 @@ def is_date_format_string(book, fmt):
             state = 0
         assert 0 <= state <= 2
     if book.verbosity >= 4:
-        print("is_date_format_string: reduced format is %r" % s, file=book.logfile)
+        print("is_date_format_string: reduced format is %s" % REPR(s), file=book.logfile)
     s = fmt_bracketed_sub('', s)
     if s in non_date_formats:
         return False
@@ -616,11 +622,10 @@ def palette_epilogue(book):
             book.colour_indexes_used[cx] = 1
         elif book.verbosity:
             print("Size of colour table:", len(book.colour_map), file=book.logfile)
-            print("*** Font #%d (%r): colour index 0x%04x is unknown" \
-                % (font.font_index, font.name, cx), file=book.logfile)
+            fprintf(self.logfile, "*** Font #%d (%r): colour index 0x%04x is unknown\n",
+                font.font_index, font.name, cx)
     if book.verbosity >= 1:
-        used = book.colour_indexes_used.keys()
-        used.sort()
+        used = sorted(book.colour_indexes_used.keys())
         print("\nColour indexes used:\n%r\n" % used, file=book.logfile)
 
 def handle_style(book, data):
@@ -664,8 +669,8 @@ def handle_style(book, data):
             print("WARNING *** A user-defined style has a zero-length name", file=book.logfile)
     book.style_name_map[name] = (built_in, xf_index)
     if blah:
-        print("STYLE: built_in=%d xf_index=%d built_in_id=%d level=%d name=%r" \
-            % (built_in, xf_index, built_in_id, level, name), file=book.logfile)
+        fprintf(book.logfile, "STYLE: built_in=%d xf_index=%d built_in_id=%d level=%d name=%r\n",
+            built_in, xf_index, built_in_id, level, name)
 
 def check_colour_indexes_in_obj(book, obj, orig_index):
     alist = sorted(obj.__dict__.items())
@@ -948,6 +953,13 @@ def handle_xf(self, data):
             header="--- handle_xf: xf[%d] ---" % xf.xf_index,
             footer=" ",
         )
+    try:
+        fmt = self.format_map[xf.format_key]
+        cellty = _cellty_from_fmtty[fmt.type]
+    except KeyError:
+        cellty = XL_CELL_NUMBER
+    self._xf_index_to_xl_type_map[xf.xf_index] = cellty
+
     # Now for some assertions ...
     if self.formatting_info:
         if self.verbosity and xf.is_style and xf.parent_style_index != 0x0FFF:
@@ -984,15 +996,9 @@ def xf_epilogue(self):
             fprintf(self.logfile, msg,
                     xf.xf_index, xf.format_key, xf.format_key)
             xf.format_key = 0
-        cellty_from_fmtty = {
-            FNU: XL_CELL_NUMBER,
-            FUN: XL_CELL_NUMBER,
-            FGE: XL_CELL_NUMBER,
-            FDT: XL_CELL_DATE,
-            FTX: XL_CELL_NUMBER, # Yes, a number can be formatted as text.
-            }
+
         fmt = self.format_map[xf.format_key]
-        cellty = cellty_from_fmtty[fmt.type]
+        cellty = _cellty_from_fmtty[fmt.type]
         self._xf_index_to_xl_type_map[xf.xf_index] = cellty
         # Now for some assertions etc
         if not self.formatting_info:

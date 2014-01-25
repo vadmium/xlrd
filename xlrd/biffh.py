@@ -50,7 +50,7 @@ class BaseObject(object):
                 alist.append((attr, getattr(self, attr)))
         else:
             alist = self.__dict__.items()
-        alist.sort()
+        alist = sorted(alist)
         pad = " " * indent
         if header is not None: print(header, file=f)
         list_type = type([])
@@ -65,7 +65,7 @@ class BaseObject(object):
                 ):
                 print("%s%s: %s, len = %d" % (pad, attr, type(value), len(value)), file=f)
             else:
-                print("%s%s: %r" % (pad, attr, value), file=f)
+                fprintf(f, "%s%s: %r\n", pad, attr, value)
         if footer is not None: print(footer, file=f)
 
 FUN, FDT, FNU, FGE, FTX = range(5) # unknown, date, number, general, text
@@ -255,14 +255,6 @@ for _cell_opcode in _cell_opcode_list:
 def is_cell_opcode(c):
     return c in  _cell_opcode_dict
 
-# def fprintf(f, fmt, *vargs): f.write(fmt % vargs)
-
-def fprintf(f, fmt, *vargs):
-    if fmt.endswith('\n'):
-        print(fmt[:-1] % vargs, file=f)
-    else:
-        print(fmt % vargs, end=' ', file=f)
-
 def upkbits(tgt_obj, src, manifest, local_setattr=setattr):
     for n, mask, attr in manifest:
         local_setattr(tgt_obj, attr, (src & mask) >> n)
@@ -274,7 +266,7 @@ def upkbitsL(tgt_obj, src, manifest, local_setattr=setattr, local_int=int):
 def unpack_string(data, pos, encoding, lenlen=1):
     nchars = unpack('<' + 'BH'[lenlen-1], data[pos:pos+lenlen])[0]
     pos += lenlen
-    return unicode(data[pos:pos+nchars], encoding)
+    return data[pos:pos+nchars].decode(encoding)
 
 def unpack_string_update_pos(data, pos, encoding, lenlen=1, known_len=None):
     if known_len is not None:
@@ -284,7 +276,7 @@ def unpack_string_update_pos(data, pos, encoding, lenlen=1, known_len=None):
         nchars = unpack('<' + 'BH'[lenlen-1], data[pos:pos+lenlen])[0]
         pos += lenlen
     newpos = pos + nchars
-    return (unicode(data[pos:newpos], encoding), newpos)
+    return (data[pos:newpos].decode(encoding), newpos)
 
 def unpack_unicode(data, pos, lenlen=2):
     "Return unicode_strg"
@@ -308,7 +300,7 @@ def unpack_unicode(data, pos, lenlen=2):
         # Uncompressed UTF-16-LE
         rawstrg = data[pos:pos+2*nchars]
         # if DEBUG: print "nchars=%d pos=%d rawstrg=%r" % (nchars, pos, rawstrg)
-        strg = unicode(rawstrg, 'utf_16_le')
+        strg = rawstrg.decode('utf_16_le')
         # pos += 2*nchars
     else:
         # Note: this is COMPRESSED (not ASCII!) encoding!!!
@@ -316,7 +308,7 @@ def unpack_unicode(data, pos, lenlen=2):
         # if the local codepage was cp1252 -- however this would rapidly go pear-shaped
         # for other codepages so we grit our Anglocentric teeth and return Unicode :-)
 
-        strg = unicode(data[pos:pos+nchars], "latin_1")
+        strg = data[pos:pos+nchars].decode("latin_1")
         # pos += nchars
     # if richtext:
     #     pos += 4 * rt
@@ -348,11 +340,11 @@ def unpack_unicode_update_pos(data, pos, lenlen=2, known_len=None):
         pos += 4
     if options & 0x01:
         # Uncompressed UTF-16-LE
-        strg = unicode(data[pos:pos+2*nchars], 'utf_16_le')
+        strg = data[pos:pos+2*nchars].decode('utf_16_le')
         pos += 2*nchars
     else:
         # Note: this is COMPRESSED (not ASCII!) encoding!!!
-        strg = unicode(data[pos:pos+nchars], "latin_1")
+        strg = data[pos:pos+nchars].decode("latin_1")
         pos += nchars
     if richtext:
         pos += 4 * rt
@@ -561,15 +553,11 @@ def hex_char_dump(strg, ofs, dlen, base=0, fout=sys.stdout, unnumbered=False):
                 '??? hex_char_dump: ofs=%d dlen=%d base=%d -> endpos=%d pos=%d endsub=%d substrg=%r\n',
                 ofs, dlen, base, endpos, pos, endsub, substrg)
             break
-        if PY3:
-            hexd = ''.join(["%02x " % c for c in substrg])
-        else:
-            hexd = ''.join(["%02x " % ord(c) for c in substrg])
+        hexd = ''.join(["%02x " % BYTES_ORD(c) for c in substrg])
         
         chard = ''
         for c in substrg:
-            if PY3:
-                c = chr(c)
+            c = chr(BYTES_ORD(c))
             if c == '\0':
                 c = '~'
             elif not (' ' <= c <= '~'):
@@ -646,8 +634,7 @@ def biff_count_records(mem, stream_offset, stream_len, fout=sys.stdout):
         else:
             tally[recname] = 1
         pos += length + 4
-    slist = tally.items()
-    slist.sort()
+    slist = sorted(tally.items())
     for recname, count in slist:
         print("%8d %s" % (count, recname), file=fout)
 
