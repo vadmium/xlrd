@@ -1,15 +1,13 @@
-# -*- coding: ascii -*-
-
 ##
-# <p> Portions copyright (c) 2008-2012 Stephen John Machin, Lingfo Pty Ltd</p>
-# <p>This module is part of the xlrd package, which is released under a BSD-style licence.</p>
+# Portions copyright (c) 2008-2012 Stephen John Machin, Lingfo Pty Ltd
+# This module is part of the xlrd package, which is released under a BSD-style licence.
 ##
 
 from __future__ import print_function, unicode_literals
 
 DEBUG = 0
 
-import sys, zipfile, pprint
+import sys
 import re
 from .timemachine import *
 from .book import Book, Name
@@ -65,7 +63,7 @@ def split_tag(tag):
 
 def augment_keys(adict, uri):
     # uri must already be enclosed in {}
-    for x in adict.keys():
+    for x in list(adict.keys()):
         adict[uri + x] = adict[x]
 
 _UPPERCASE_1_REL_INDEX = {} # Used in fast conversion of column names (e.g. "XFD") to indices (16383)
@@ -123,34 +121,13 @@ def unescape(s,
         return subber(repl, s)
     return s
 
-if python_version < (2, 2):
-    def strip_xml_ws(s,
-        ):
-        n = len(s)
-        spos = 0
-        while spos < n and s[spos] in XML_WHITESPACE:
-            spos += 1
-        epos = n - 1
-        while epos >= spos and s[epos] in XML_WHITESPACE:
-            epos -= 1
-        return s[spos:epos+1]
-
-    def cooked_text(self, elem):
-        t = elem.text
-        if t is None:
-            return ''
-        if elem.get(XML_SPACE_ATTR) != 'preserve':
-            t = strip_xml_ws(t)
-        return unicode(unescape(t))
-else:
-
-    def cooked_text(self, elem):
-        t = elem.text
-        if t is None:
-            return ''
-        if elem.get(XML_SPACE_ATTR) != 'preserve':
-            t = t.strip(XML_WHITESPACE)
-        return unicode(unescape(t))
+def cooked_text(self, elem):
+    t = elem.text
+    if t is None:
+        return ''
+    if elem.get(XML_SPACE_ATTR) != 'preserve':
+        t = t.strip(XML_WHITESPACE)
+    return ensure_unicode(unescape(t))
 
 def get_text_from_si_or_is(self, elem, r_tag=U_SSML12+'r', t_tag=U_SSML12 +'t'):
     "Returns unescaped unicode"
@@ -182,7 +159,7 @@ def map_attributes(amap, elem, obj):
 
 def cnv_ST_Xstring(s):
     if s is None: return ""
-    return unicode(s)
+    return ensure_unicode(s)
 
 def cnv_xsd_unsignedInt(s):
     if not s:
@@ -375,7 +352,7 @@ class X12Book(X12General):
         # print elem.attrib
         rid = elem.get(U_ODREL + 'id')
         sheetId = int(elem.get('sheetId'))
-        name = unescape(unicode(elem.get('name')))
+        name = unescape(ensure_unicode(elem.get('name')))
         reltype = self.relid2reltype[rid]
         target = self.relid2path[rid]
         if self.verbosity >= 2:
@@ -386,7 +363,14 @@ class X12Book(X12General):
             if self.verbosity >= 2:
                 self.dumpout('Ignoring sheet of type %r (name=%r)', reltype, name)
             return
-        bk._sheet_visibility.append(True)
+        state = elem.get('state')
+        visibility_map = {
+            None: 0,
+            'visible': 0,
+            'hidden': 1,
+            'veryHidden': 2
+            }
+        bk._sheet_visibility.append(visibility_map[state])
         sheet = Sheet(bk, position=None, name=name, number=sheetx)
         sheet.utter_max_rows = X12_MAX_ROWS
         sheet.utter_max_cols = X12_MAX_COLS
@@ -440,7 +424,7 @@ class X12SST(X12General):
             self.dumpout('Entries in SST: %d', len(sst))
         if self.verbosity >= 3:
             for x, s in enumerate(sst):
-                print("SST x=%d s=%r" % (x, s))
+                fprintf(self.logfile, "SST x=%d s=%r\n", x, s)
 
     def process_stream_findall(self, stream, heading=None):
         if self.verbosity >= 2 and heading is not None:
@@ -468,7 +452,7 @@ class X12Styles(X12General):
         self.xf_counts = [0, 0]
         self.xf_type = None
         self.fmt_is_date = {}
-        for x in range(14, 23) + range(45, 48): #### hard-coding FIX ME ####
+        for x in list(range(14, 23)) + list(range(45, 48)): #### hard-coding FIX ME ####
             self.fmt_is_date[x] = 1
         # dummy entry for XF 0 in case no Styles section
         self.bk._xf_index_to_xl_type_map[0] = 2
@@ -481,7 +465,7 @@ class X12Styles(X12General):
         self.xf_type = 1
 
     def do_numfmt(self, elem):
-        formatCode = unicode(elem.get('formatCode'))
+        formatCode = ensure_unicode(elem.get('formatCode'))
         numFmtId = int(elem.get('numFmtId'))
         is_date = is_date_format_string(self.bk, formatCode)
         self.fmt_is_date[numFmtId] = is_date
@@ -592,6 +576,8 @@ class X12Sheet(X12General):
                 try:
                     for c in cell_name:
                         charx += 1
+                        if c == '$':
+                            continue
                         lv = letter_value[c]
                         if lv:
                             colx = colx * 26 + lv
@@ -706,21 +692,11 @@ class X12Sheet(X12General):
         }
     augment_keys(tag2meth, U_SSML12)
 
-def getzflo(zipfile, member_path):
-    # GET a Zipfile File-Like Object for passing to
-    # an XML parser
-    try:
-        return zipfile.open(member_path) # CPython 2.6 onwards
-    except AttributeError:
-        # old way
-        return BYTES_IO(zipfile.read(member_path))
-
 def open_workbook_2007_xml(
     zf,
     component_names,
     logfile=sys.stdout,
     verbosity=0,
-    pickleable=1,
     use_mmap=0,
     formatting_info=0,
     on_demand=0,
@@ -730,7 +706,6 @@ def open_workbook_2007_xml(
     bk = Book()
     bk.logfile = logfile
     bk.verbosity = verbosity
-    bk.pickleable = pickleable
     bk.formatting_info = formatting_info
     if formatting_info:
         raise NotImplementedError("formatting_info=True not yet implemented")
@@ -743,20 +718,20 @@ def open_workbook_2007_xml(
     bk.ragged_rows = ragged_rows
 
     x12book = X12Book(bk, logfile, verbosity)
-    zflo = getzflo(zf, 'xl/_rels/workbook.xml.rels')
+    zflo = zf.open('xl/_rels/workbook.xml.rels')
     x12book.process_rels(zflo)
     del zflo
-    zflo = getzflo(zf, 'xl/workbook.xml')
+    zflo = zf.open('xl/workbook.xml')
     x12book.process_stream(zflo, 'Workbook')
     del zflo
     props_name = 'docProps/core.xml'
     if props_name in component_names:
-        zflo = getzflo(zf, props_name)
+        zflo = zf.open(props_name)
         x12book.process_coreprops(zflo)
 
     x12sty = X12Styles(bk, logfile, verbosity)
     if 'xl/styles.xml' in component_names:
-        zflo = getzflo(zf, 'xl/styles.xml')
+        zflo = zf.open('xl/styles.xml')
         x12sty.process_stream(zflo, 'styles')
         del zflo
     else:
@@ -766,13 +741,13 @@ def open_workbook_2007_xml(
     sst_fname = 'xl/sharedStrings.xml'
     x12sst = X12SST(bk, logfile, verbosity)
     if sst_fname in component_names:
-        zflo = getzflo(zf, sst_fname)
+        zflo = zf.open(sst_fname)
         x12sst.process_stream(zflo, 'SST')
         del zflo
 
     for sheetx in range(bk.nsheets):
         fname = x12book.sheet_targets[sheetx]
-        zflo = getzflo(zf, fname)
+        zflo = zf.open(fname)
         sheet = bk._sheet_list[sheetx]
         x12sheet = X12Sheet(sheet, logfile, verbosity)
         heading = "Sheet %r (sheetx=%d) from %r" % (sheet.name, sheetx, fname)

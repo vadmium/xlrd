@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: ascii -*-
-# <p>Copyright (c) 2005-2012 Stephen John Machin, Lingfo Pty Ltd</p>
-# <p>This script is part of the xlrd package, which is released under a
-# BSD-style licence.</p>
+# Copyright (c) 2005-2012 Stephen John Machin, Lingfo Pty Ltd
+# This script is part of the xlrd package, which is released under a
+# BSD-style licence.
 
 from __future__ import print_function
 
@@ -36,9 +35,9 @@ if __name__ == "__main__":
     PSYCO = 0
 
     import xlrd
-    import sys, time, glob, traceback, pprint, gc
+    import sys, time, glob, traceback, gc
     
-    from xlrd.timemachine import xrange
+    from xlrd.timemachine import xrange, REPR
     
 
     class LogHandler(object):
@@ -90,9 +89,8 @@ if __name__ == "__main__":
             if cty == xlrd.XL_CELL_DATE:
                 try:
                     showval = xlrd.xldate_as_tuple(cval, dmode)
-                except xlrd.XLDateError:
-                    e1, e2 = sys.exc_info()[:2]
-                    showval = "%s:%s" % (e1.__name__, e2)
+                except xlrd.XLDateError as e:
+                    showval = "%s:%s" % (type(e).__name__, e)
                     cty = xlrd.XL_CELL_ERROR
             elif cty == xlrd.XL_CELL_ERROR:
                 showval = xlrd.error_text_from_code.get(cval, '<Unknown error code 0x%02x>' % cval)
@@ -109,8 +107,8 @@ if __name__ == "__main__":
             % (bk.codepage, bk.encoding, bk.countries))
         print("Last saved by: %r" % bk.user_name)
         print("Number of data sheets: %d" % bk.nsheets)
-        print("Pickleable: %d; Use mmap: %d; Formatting: %d; On demand: %d"
-            % (bk.pickleable, bk.use_mmap, bk.formatting_info, bk.on_demand))
+        print("Use mmap: %d; Formatting: %d; On demand: %d"
+            % (bk.use_mmap, bk.formatting_info, bk.on_demand))
         print("Ragged rows: %d" % bk.ragged_rows)
         if bk.formatting_info:
             print("FORMATs: %d, FONTs: %d, XFs: %d"
@@ -189,8 +187,8 @@ if __name__ == "__main__":
             nrows, ncols = sh.nrows, sh.ncols
             colrange = range(ncols)
             anshow = min(nshow, nrows)
-            print("sheet %d: name = %r; nrows = %d; ncols = %d" %
-                (shx, sh.name, sh.nrows, sh.ncols))
+            print("sheet %d: name = %s; nrows = %d; ncols = %d" %
+                (shx, REPR(sh.name), sh.nrows, sh.ncols))
             if nrows and ncols:
                 # Beat the bounds
                 for rowx in xrange(nrows):
@@ -241,10 +239,6 @@ if __name__ == "__main__":
             "-v", "--verbosity",
             type="int", default=0,
             help="level of information and diagnostics provided")
-        oparser.add_option(
-            "-p", "--pickleable",
-            type="int", default=1,
-            help="1: ensure Book object is pickleable (default); 0: don't bother")
         oparser.add_option(
             "-m", "--mmap",
             type="int", default=-1,
@@ -331,7 +325,7 @@ if __name__ == "__main__":
                     t0 = time.time()
                     bk = xlrd.open_workbook(fname,
                         verbosity=options.verbosity, logfile=logfile,
-                        pickleable=options.pickleable, use_mmap=mmap_arg,
+                        use_mmap=mmap_arg,
                         encoding_override=options.encoding,
                         formatting_info=fmt_opt,
                         on_demand=options.on_demand,
@@ -340,17 +334,15 @@ if __name__ == "__main__":
                     t1 = time.time()
                     if not options.suppress_timing:
                         print("Open took %.2f seconds" % (t1-t0,))
-                except xlrd.XLRDError:
-                    e0, e1 = sys.exc_info()[:2]
-                    print("*** Open failed: %s: %s" % (e0.__name__, e1))
+                except xlrd.XLRDError as e:
+                    print("*** Open failed: %s: %s" % (type(e).__name__, e))
                     continue
                 except KeyboardInterrupt:
                     print("*** KeyboardInterrupt ***")
                     traceback.print_exc(file=sys.stdout)
                     sys.exit(1)
-                except:
-                    e0, e1 = sys.exc_info()[:2]
-                    print("*** Open failed: %s: %s" % (e0.__name__, e1))
+                except BaseException as e:
+                    print("*** Open failed: %s: %s" % (type(e).__name__, e))
                     traceback.print_exc(file=sys.stdout)
                     continue
                 t0 = time.time()

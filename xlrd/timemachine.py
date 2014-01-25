@@ -1,20 +1,16 @@
-# -*- coding: ascii -*-
-
 ##
 # <p>Copyright (c) 2006-2012 Stephen John Machin, Lingfo Pty Ltd</p>
 # <p>This module is part of the xlrd package, which is released under a BSD-style licence.</p>
 ##
 
 # timemachine.py -- adaptation for single codebase.
-# Currently supported: 2.1 to 2.7
+# Currently supported: 2.6 to 2.7, 3.2+
 # usage: from timemachine import *
 
-from __future__ import nested_scopes
+from __future__ import print_function
 import sys
 
-python_version = sys.version_info[:2] # e.g. version 2.4 -> (2, 4)
-
-CAN_PICKLE_ARRAY = python_version >= (2, 5)
+python_version = sys.version_info[:2] # e.g. version 2.6 -> (2, 6)
 
 if python_version >= (3, 0):
     # Python 3
@@ -24,11 +20,16 @@ if python_version >= (3, 0):
     from io import BytesIO as BYTES_IO
     def fprintf(f, fmt, *vargs):
         fmt = fmt.replace("%r", "%a")
-        f.write(fmt % vargs)
+        if fmt.endswith('\n'):
+            print(fmt[:-1] % vargs, file=f)
+        else:
+            print(fmt % vargs, end=' ', file=f)        
     EXCEL_TEXT_TYPES = (str, bytes, bytearray) # xlwt: isinstance(obj, EXCEL_TEXT_TYPES)
     REPR = ascii
     xrange = range
     unicode = lambda b, enc: b.decode(enc)
+    ensure_unicode = lambda s: s
+    unichr = chr
 else:
     # Python 2
     BYTES_LITERAL = lambda x: x
@@ -36,55 +37,16 @@ else:
     BYTES_ORD = ord
     from cStringIO import StringIO as BYTES_IO
     def fprintf(f, fmt, *vargs):
-        f.write(fmt % vargs)
+        if fmt.endswith('\n'):
+            print(fmt[:-1] % vargs, file=f)
+        else:
+            print(fmt % vargs, end=' ', file=f)        
     try:
         EXCEL_TEXT_TYPES = basestring # xlwt: isinstance(obj, EXCEL_TEXT_TYPES)
     except NameError:
         EXCEL_TEXT_TYPES = (str, unicode)
     REPR = repr
     xrange = xrange
-
-if python_version >= (2, 6):
-    def BUFFER(obj, offset=0, size=None):
-        if size is None:
-            return memoryview(obj)[offset:]
-        return memoryview(obj)[offset:offset+size]
-else:
-    BUFFER = buffer
-
-try:
-    from array import array as array_array
-except ImportError:
-    # old version of IronPython?
-    array_array = None
-
-try:
-    object
-except NameError:
-    class object:
-        pass
-
-try:
-    True
-except NameError:
-    setattr(sys.modules['__builtin__'], 'True', 1)
-
-try:
-    False
-except NameError:
-    setattr(sys.modules['__builtin__'], 'False', 0)
-    
-def int_floor_div(x, y):
-    return divmod(x, y)[0]
-
-def intbool(x):
-    if x:
-        return 1
-    return 0
-
-if python_version < (2, 3):
-    def sum(sequence, start=0):
-        tot = start
-        for item in aseq:
-            tot += item
-        return tot
+    # following used only to overcome 2.x ElementTree gimmick which
+    # returns text as `str` if it's ascii, otherwise `unicode`
+    ensure_unicode = unicode # used only in xlsx.py 

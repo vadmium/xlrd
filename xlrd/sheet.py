@@ -1,7 +1,7 @@
 # -*- coding: cp1252 -*-
 
 ##
-# <p> Portions copyright © 2005-2012 Stephen John Machin, Lingfo Pty Ltd</p>
+# <p> Portions copyright © 2005-2013 Stephen John Machin, Lingfo Pty Ltd</p>
 # <p>This module is part of the xlrd package, which is released under a BSD-style licence.</p>
 ##
 
@@ -29,8 +29,8 @@
 
 from __future__ import print_function
 
+from array import array
 from struct import unpack, calcsize
-import time
 from .biffh import *
 from .timemachine import *
 from .formula import dump_formula, decompile_formula, rangename2d, FMLA_TYPE_CELL, FMLA_TYPE_SHARED
@@ -305,15 +305,8 @@ class Sheet(BaseObject):
         self.biff_version = book.biff_version
         self._position = position
         self.logfile = book.logfile
-        self.pickleable = book.pickleable
-        if array_array and (CAN_PICKLE_ARRAY or not book.pickleable):
-            # use array
-            self.bt = array_array('B', [XL_CELL_EMPTY])
-            self.bf = array_array('h', [-1])
-        else:
-            # don't use array
-            self.bt = [XL_CELL_EMPTY]
-            self.bf = [-1]
+        self.bt = array('B', [XL_CELL_EMPTY])
+        self.bf = array('h', [-1])
         self.name = name
         self.number = number
         self.verbosity = book.verbosity
@@ -583,7 +576,7 @@ class Sheet(BaseObject):
                 # we put one empty cell at (nr-1,0) to make sure
                 # we have the right number of rows. The ragged rows
                 # will sort out the rest if needed.
-                self.put_cell(nr-1, 0, XL_CELL_EMPTY, -1)
+                self.put_cell(nr-1, 0, XL_CELL_EMPTY, '', -1)
         if self.verbosity >= 1 \
         and (self.nrows != self._dimnrows or self.ncols != self._dimncols):
             fprintf(self.logfile,
@@ -1053,6 +1046,9 @@ class Sheet(BaseObject):
                     self_put_cell(rowx, colx, XL_CELL_BLANK, '', result[pos])
                     pos += 1
             elif rc == XL_DIMENSION or rc == XL_DIMENSION2:
+                if data_len == 0:
+                    # Four zero bytes after some other record. See github issue 64.
+                    continue
                 # if data_len == 10:
                 # Was crashing on BIFF 4.0 file w/o the two trailing unused bytes.
                 # Reported by Ralph Heimburger.
@@ -1231,7 +1227,7 @@ class Sheet(BaseObject):
                     self.merged_cells, data, 0, bv, addr_size=8)
                 if blah:
                     fprintf(self.logfile,
-                        "MERGEDCELLS: %d ranges\n", int_floor_div(pos - 2, 8))
+                        "MERGEDCELLS: %d ranges\n", (pos - 2) // 8)
                 assert pos == data_len, \
                     "MERGEDCELLS: pos=%d data_len=%d" % (pos, data_len)
             elif rc == XL_WINDOW2:
@@ -1273,7 +1269,7 @@ class Sheet(BaseObject):
                 num, den = unpack("<HH", data)
                 result = 0
                 if den:
-                    result = int_floor_div(num * 100, den)
+                    result = (num * 100) // den
                 if not(10 <= result <= 400):
                     if DEBUG or self.verbosity >= 0:
                         print((
@@ -1725,7 +1721,7 @@ class Sheet(BaseObject):
         if (options & 1) and not (options & 0x100): # HasMoniker and not MonikerSavedAsString
             # an OLEMoniker structure
             clsid, = unpack('<16s', data[offset:offset + 16])
-            if DEBUG: print("clsid=%r" %clsid, file=self.logfile)
+            if DEBUG: fprintf(self.logfile, "clsid=%r\n",  clsid)
             offset += 16
             if clsid == b"\xE0\xC9\xEA\x79\xF9\xBA\xCE\x11\x8C\x82\x00\xAA\x00\x4B\xA9\x0B":
                 #          E0H C9H EAH 79H F9H BAH CEH 11H 8CH 82H 00H AAH 00H 4BH A9H 0BH
@@ -1734,7 +1730,7 @@ class Sheet(BaseObject):
                 nbytes = unpack('<L', data[offset:offset + 4])[0]
                 offset += 4
                 h.url_or_path = unicode(data[offset:offset + nbytes], 'UTF-16le')
-                if DEBUG: print("initial url=%r len=%d" % (h.url_or_path, len(h.url_or_path)), file=self.logfile)
+                if DEBUG: fprintf(self.logfile, "initial url=%r len=%d\n", h.url_or_path, len(h.url_or_path))
                 endpos = h.url_or_path.find('\x00')
                 if DEBUG: print("endpos=%d" % endpos, file=self.logfile)
                 h.url_or_path = h.url_or_path[:endpos]
@@ -1743,9 +1739,12 @@ class Sheet(BaseObject):
                 extra_nbytes = nbytes - true_nbytes
                 extra_data = data[offset:offset + extra_nbytes]
                 offset += extra_nbytes
-                if DEBUG: print("url=%r" % h.url_or_path, file=self.logfile)
-                if DEBUG: print("extra=%r" % extra_data, file=self.logfile)
-                if DEBUG: print("nbytes=%d true_nbytes=%d extra_nbytes=%d" % (nbytes, true_nbytes, extra_nbytes), file=self.logfile)
+                if DEBUG: 
+                    fprintf(
+                        self.logfile,
+                        "url=%r\nextra=%r\nnbytes=%d true_nbytes=%d extra_nbytes=%d\n",
+                        h.url_or_path, extra_data, nbytes, true_nbytes, extra_nbytes,
+                        )
                 assert extra_nbytes in (24, 0)
             elif clsid == b"\x03\x03\x00\x00\x00\x00\x00\x00\xC0\x00\x00\x00\x00\x00\x00\x46":
                 # file moniker
@@ -1753,7 +1752,7 @@ class Sheet(BaseObject):
                 uplevels, nbytes = unpack("<Hi", data[offset:offset + 6])
                 offset += 6
                 shortpath = b"..\\" * uplevels + data[offset:offset + nbytes - 1] #### BYTES, not unicode
-                if DEBUG: print("uplevels=%d shortpath=%r" % (uplevels, shortpath), file=self.logfile)
+                if DEBUG: fprintf(self.logfile, "uplevels=%d shortpath=%r\n", uplevels, shortpath)
                 offset += nbytes
                 offset += 24 # OOo: "unknown byte sequence"
                 # above is version 0xDEAD + 20 reserved zero bytes
@@ -1772,7 +1771,7 @@ class Sheet(BaseObject):
                     #### MS KLUDGE WARNING ####
                     # The "shortpath" is bytes encoded in the **UNKNOWN** creator's "ANSI" encoding.
             else:
-                print("*** unknown clsid %r" % clsid, file=self.logfile)
+                fprintf(self.logfile, "*** unknown clsid %r\n", clsid)
         elif options & 0x163 == 0x103: # UNC
             h.type = UNICODE_LITERAL('unc')
             h.url_or_path, offset = get_nul_terminated_unicode(data, offset)
@@ -1784,8 +1783,23 @@ class Sheet(BaseObject):
         if options & 0x8: # has textmark
             h.textmark, offset = get_nul_terminated_unicode(data, offset)
 
-        assert offset == record_size
-        if DEBUG: h.dump(header="... object dump ...")        
+        if DEBUG:
+            h.dump(header="... object dump ...") 
+            print("offset=%d record_size=%d" % (offset, record_size))
+            
+        extra_nbytes = record_size - offset
+        if extra_nbytes > 0:
+            fprintf(
+                self.logfile,
+                "*** WARNING: hyperlink at r=%d c=%d has %d extra data bytes: %s\n",
+                h.frowx,
+                h.fcolx,
+                extra_nbytes,
+                REPR(data[-extra_nbytes:])
+                )
+            # Seen: b"\x00\x00" also b"A\x00", b"V\x00"
+        elif extra_nbytes < 0:        
+            raise XLRDError("Bug or corrupt file, send copy of input file for debugging")
 
         self.hyperlink_list.append(h)
         for rowx in xrange(h.frowx, h.lrowx+1):
@@ -1975,7 +1989,7 @@ class Sheet(BaseObject):
             nchars = data2_len - 1
             if nb:
                 assert nchars % 2 == 0
-                nchars /= 2
+                nchars //= 2
             utext, endpos = unpack_unicode_update_pos(data2, 0, known_len=nchars)
             assert endpos == data2_len
             o.text += utext
@@ -2019,7 +2033,7 @@ class Sheet(BaseObject):
         assert rt == 0x872
         assert fHdr == 0
         assert Ref1 == Ref0
-        print("FEAT11: grbitFrt=%d  Ref0=%r cref=%d cbFeatData=%d" % (grbitFrt, Ref0, cref, cbFeatData), file=self.logfile)
+        print(self.logfile, "FEAT11: grbitFrt=%d  Ref0=%r cref=%d cbFeatData=%d\n", grbitFrt, Ref0, cref, cbFeatData)
         # lt: Table data source type:
         #   =0 for Excel Worksheet Table =1 for read-write SharePoint linked List
         #   =2 for XML mapper Table =3 for Query Table

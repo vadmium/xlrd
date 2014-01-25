@@ -343,11 +343,6 @@ USE_MMAP = MMAP_AVAILABLE
 #
 # @param verbosity Increases the volume of trace material written to the logfile.
 #
-# @param pickleable Default is true. In Python 2.4 or earlier, setting to false
-# will cause use of array.array objects which save some memory but can't be pickled.
-# In Python 2.5, array.arrays are used unconditionally. Note: if you have large files that
-# you need to read multiple times, it can be much faster to cPickle.dump() the xlrd.Book object
-# once, and use cPickle.load() multiple times.
 # @param use_mmap Whether to use the mmap module is determined heuristically.
 # Use this arg to override the result. Current heuristic: mmap is used if it exists.
 #
@@ -385,7 +380,6 @@ USE_MMAP = MMAP_AVAILABLE
 def open_workbook(filename=None,
     logfile=sys.stdout,
     verbosity=0,
-    pickleable=True,
     use_mmap=USE_MMAP,
     file_contents=None,
     encoding_override=None,
@@ -416,8 +410,7 @@ def open_workbook(filename=None,
                 component_names,
                 logfile=logfile,
                 verbosity=verbosity,
-                pickleable=pickleable,
-                use_mmap=mmap,
+                use_mmap=use_mmap,
                 formatting_info=formatting_info,
                 on_demand=on_demand,
                 ragged_rows=ragged_rows,
@@ -434,7 +427,6 @@ def open_workbook(filename=None,
         filename=filename,
         logfile=logfile,
         verbosity=verbosity,
-        pickleable=pickleable,
         use_mmap=use_mmap,
         file_contents=file_contents,
         encoding_override=encoding_override,
@@ -451,7 +443,6 @@ def open_workbook(filename=None,
 # @param unnumbered If true, omit offsets (for meaningful diffs).
 
 def dump(filename, outfile=sys.stdout, unnumbered=False):
-    from .book import Book
     from .biffh import biff_dump
     bk = Book()
     bk.biff2_8_load(filename=filename, logfile=outfile, )
@@ -464,7 +455,6 @@ def dump(filename, outfile=sys.stdout, unnumbered=False):
 # @param outfile An open file, to which the summary is written.
 
 def count_records(filename, outfile=sys.stdout):
-    from .book import Book
     from .biffh import biff_count_records
     bk = Book()
     bk.biff2_8_load(filename=filename, logfile=outfile, )
